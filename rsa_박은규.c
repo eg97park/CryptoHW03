@@ -73,6 +73,33 @@ int main (int argc, char *argv[])
     return 0;
 }
 
+
+/**
+ * @brief Return allocated BOB11_RSA*.
+ * 
+ * @return BOB11_RSA* 
+ */
+BOB11_RSA *BOB11_RSA_new(){
+    BOB11_RSA* _ = (BOB11_RSA*)malloc(sizeof(BOB11_RSA));
+    return _;
+}
+
+
+/**
+ * @brief Free allocated BOB_RSA*.
+ * 
+ * @param b11rsa allocated BOB_RSA*.
+ * @return int 0.
+ */
+int BOB11_RSA_free(BOB11_RSA *b11rsa){
+    if(b11rsa->e != NULL) BN_free(b11rsa->e);
+    if(b11rsa->d != NULL) BN_free(b11rsa->d);
+    if(b11rsa->n != NULL) BN_free(b11rsa->n);
+    if(b11rsa != NULL) free(b11rsa);
+    return 0;
+}
+
+
 void PrintUsage()
 {
     printf("usage: rsa [-k|-e e n plaintext|-d d n ciphertext]\n");
