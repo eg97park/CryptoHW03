@@ -132,10 +132,36 @@ void printBN(char *msg, BIGNUM * a)
 
 
 /**
+ * @brief Get Random BIGNUM of nBits.
+ * 
+ * @param nBits bits of BIGNUM.
+ * @return BIGNUM* Random BIGNUM.
+ */
+BIGNUM *GetRandBN(int nBits){
+    BIGNUM* rand = BN_new();
+    return rand;
+}
+
+
+
+/**
+ * @brief Miller-Rabin Primality Test.
+ * 
+ * @param nBits bits of prime.
+ * @return BIGNUM* probably prime.
+ * @comment https://aquarchitect.github.io/swift-algorithm-club/Miller-Rabin%20Primality%20Test/
+ */
+BIGNUM *MillerRabinPrimalityTest(int nBits){
+    BIGNUM* prime = BN_new();
+    return prime;
+}
+
+
+/**
  * @brief RSA 키 생성 함수.
  * 
- * @param[out] b11rsa 
- * @param[in] nBits 
+ * @param[out] b11rsa n, e, d.
+ * @param[in] nBits bits of key.
  * @return int 
  * @comment
  *  p=C485F491D12EA7E6FEB95794E9FE0A819168AAC9D545C9E2AE0C561622F265FEB965754C875E049B19F3F945F2574D57FA6A2FC0A0B99A2328F107DD16ADA2A7
@@ -150,10 +176,10 @@ int BOB11_RSA_KeyGen(BOB11_RSA *b11rsa, int nBits){
     BIGNUM* q = BN_new();
 
     // p, q 랜덤으로 선택되어야 함. 여기 scope에서 생성되고, 검증되고, 없어져야만 함.
-    //BN_hex2bn(&p, "C485F491D12EA7E6FEB95794E9FE0A819168AAC9D545C9E2AE0C561622F265FEB965754C875E049B19F3F945F2574D57FA6A2FC0A0B99A2328F107DD16ADA2A7");
-    //BN_hex2bn(&q, "F9A91C5F20FBBCCC4114FEBABFE9D6806A52AECDF5C9BAC9E72A07B0AE162B4540C62C52DF8A8181ABCC1A9E982DEB84DE500B27E902CD8FDED6B545C067CE4F");
-    BN_hex2bn(&p, "11");
-    BN_hex2bn(&q, "13");
+    BN_hex2bn(&p, "C485F491D12EA7E6FEB95794E9FE0A819168AAC9D545C9E2AE0C561622F265FEB965754C875E049B19F3F945F2574D57FA6A2FC0A0B99A2328F107DD16ADA2A7");
+    BN_hex2bn(&q, "F9A91C5F20FBBCCC4114FEBABFE9D6806A52AECDF5C9BAC9E72A07B0AE162B4540C62C52DF8A8181ABCC1A9E982DEB84DE500B27E902CD8FDED6B545C067CE4F");
+    //BN_hex2bn(&p, "11");
+    //BN_hex2bn(&q, "13");
     BN_mul(b11rsa->n, p, q, ctx);
 
     // Get  φ(n) = (p - 1)(q - 1).
@@ -177,7 +203,7 @@ int BOB11_RSA_KeyGen(BOB11_RSA *b11rsa, int nBits){
     while(1){
         BIGNUM* gcd;
         BIGNUM* dummy = BN_new();
-        BN_rand_range(b11rsa->e, phi);
+        BN_rand_range(b11rsa->e, phi); // !TODO: 랜덤 쓰면 안됨.
         gcd = XEuclid(b11rsa->d, dummy, b11rsa->e, phi);
         if (BN_cmp(gcd, BN_value_one()) == 0){
             if (BN_cmp(b11rsa->d, BN_value_one()) == -1){
@@ -186,6 +212,7 @@ int BOB11_RSA_KeyGen(BOB11_RSA *b11rsa, int nBits){
             break;
         }
     }
+
     printBN("cand p: ", p);
     printBN("cand q: ", q);
     printBN("cand n: ", b11rsa->n);
@@ -236,11 +263,11 @@ void PrintUsage()
 /**
  * @brief CryptoHW01 과제에서 구현한 XEuclid 입니다.
  * 
- * @param[in] x 
- * @param[in] y 
- * @param[in] a 
- * @param[in] b 
- * @return BIGNUM* [in]
+ * @param[in] x e
+ * @param[in] y dummy
+ * @param[in] a d
+ * @param[in] b Φ(n)
+ * @return BIGNUM* gcd(x, y)?
  * 
  * @comment https://github.com/Eungyu-dev/CryptoHW01/blob/main/xeuclid.c
  */
