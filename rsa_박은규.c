@@ -91,6 +91,8 @@ int BOB11_RSA_Enc(BIGNUM *c, BIGNUM *m, BOB11_RSA *b11rsa){
         // @ExpMod Error.
         return 1;
     }
+    printBN("m=%s", m);
+    printBN("c=%s", c);
     return 0;
 }
 
@@ -109,6 +111,8 @@ int BOB11_RSA_Dec(BIGNUM *m,BIGNUM *c, BOB11_RSA *b11rsa){
         // @ExpMod Error.
         return 1;
     }
+    printBN("c=%s", c);
+    printBN("m=%s", m);
     return 0;
 }
 
@@ -144,8 +148,12 @@ int BOB11_RSA_KeyGen(BOB11_RSA *b11rsa, int nBits){
     // Choose two primes p and q, and put n := pq.
     BIGNUM* p = BN_new();
     BIGNUM* q = BN_new();
-    BN_hex2bn(&p, "C485F491D12EA7E6FEB95794E9FE0A819168AAC9D545C9E2AE0C561622F265FEB965754C875E049B19F3F945F2574D57FA6A2FC0A0B99A2328F107DD16ADA2A7");
-    BN_hex2bn(&q, "F9A91C5F20FBBCCC4114FEBABFE9D6806A52AECDF5C9BAC9E72A07B0AE162B4540C62C52DF8A8181ABCC1A9E982DEB84DE500B27E902CD8FDED6B545C067CE4F");
+
+    // p, q 랜덤으로 선택되어야 함. 여기 scope에서 생성되고, 검증되고, 없어져야만 함.
+    //BN_hex2bn(&p, "C485F491D12EA7E6FEB95794E9FE0A819168AAC9D545C9E2AE0C561622F265FEB965754C875E049B19F3F945F2574D57FA6A2FC0A0B99A2328F107DD16ADA2A7");
+    //BN_hex2bn(&q, "F9A91C5F20FBBCCC4114FEBABFE9D6806A52AECDF5C9BAC9E72A07B0AE162B4540C62C52DF8A8181ABCC1A9E982DEB84DE500B27E902CD8FDED6B545C067CE4F");
+    BN_hex2bn(&p, "11");
+    BN_hex2bn(&q, "13");
     BN_mul(b11rsa->n, p, q, ctx);
 
     // Get  φ(n) = (p - 1)(q - 1).
@@ -157,11 +165,33 @@ int BOB11_RSA_KeyGen(BOB11_RSA *b11rsa, int nBits){
     BN_mul(phi, p_1, q_1, ctx);
 
     // Choose an integer e such that (e, φ(n)) = 1.
-    printBN("p: ", p);
-    printBN("q: ", q);
-    printBN("p-1: ", p_1);
-    printBN("q-1: ", q_1);
 
+    /**
+     * BIGNUM *XEuclid(BIGNUM *x, BIGNUM *y, const BIGNUM *a, const BIGNUM *b);
+     * a*X + b*Y = d
+     * e*X + Φ(n)Y = 1
+     * e*d + kΦ(n) = 1
+     * ed = 1 (mod Φ(n))
+     */
+
+    while(1){
+        BIGNUM* gcd;
+        BIGNUM* dummy = BN_new();
+        BN_rand_range(b11rsa->e, phi);
+        gcd = XEuclid(b11rsa->d, dummy, b11rsa->e, phi);
+        if (BN_cmp(gcd, BN_value_one()) == 0){
+            if (BN_cmp(b11rsa->d, BN_value_one()) == -1){
+                BN_add(b11rsa->d, b11rsa->d, phi);
+            }
+            break;
+        }
+    }
+    printBN("cand p: ", p);
+    printBN("cand q: ", q);
+    printBN("cand n: ", b11rsa->n);
+    printBN("cand phi: ", phi);
+    printBN("cand e: ", b11rsa->e);
+    printBN("cand d: ", b11rsa->d);
 
     return 0;
 }
