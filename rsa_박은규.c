@@ -3,8 +3,8 @@
  * @author 박은규 (ekpark97.dev@gmail.com)
  * @brief RSA
  * @version 0.1
- * @date 2022-08-16
- * @build gcc -o rsa "rsa_박은규.c" -L.. -lcrypto -I../include/crypto -g
+ * @date 2022-08-19
+ * @build gcc -o rsa "rsa_박은규.c" -L.. -lcrypto -I../include/crypto
  * @usage ./rsa [-k|-e e n plaintext|-d d n ciphertext]
  */
 
