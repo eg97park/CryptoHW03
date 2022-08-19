@@ -24,6 +24,7 @@ int BOB11_RSA_free(BOB11_RSA *b11rsa);
 int BOB11_RSA_KeyGen(BOB11_RSA *b11rsa, int nBits);
 int BOB11_RSA_Enc(BIGNUM *c, BIGNUM *m, BOB11_RSA *b11rsa);
 int BOB11_RSA_Dec(BIGNUM *m,BIGNUM *c, BOB11_RSA *b11rsa);
+int MillerRabinPrimalityTest(BIGNUM* in, int nBits);
 BIGNUM *GetRandBN(int nBits);
 void PrintUsage();
 void printBN(char *msg, BIGNUM * a);
@@ -133,10 +134,10 @@ void printBN(char *msg, BIGNUM * a)
 
 
 /**
- * @brief Get Random BIGNUM of nBits.
+ * @brief Get odd random BIGNUM of nBits.
  * 
  * @param nBits bits of BIGNUM.
- * @return BIGNUM* Random BIGNUM.
+ * @return BIGNUM* odd random BIGNUM.
  */
 BIGNUM *GetRandBN(int nBits){
     BIGNUM* rand = BN_new();
@@ -160,7 +161,7 @@ BIGNUM *GetRandBN(int nBits){
     while (1)
     {
         rb = fread(urand, sizeof(char), 1, fp);
-        if ((randIndex = urand[0] % 16) % 2 == 0){
+        if ((randIndex = urand[0] % 16) % 2 == 1){
             cand[(nBits / 8) - 1] = seed[randIndex];
             break;
         }
@@ -172,17 +173,82 @@ BIGNUM *GetRandBN(int nBits){
 }
 
 
-
 /**
  * @brief Miller-Rabin Primality Test.
  * 
  * @param nBits bits of prime.
- * @return BIGNUM* probably prime.
+ * @return ?
  * @comment https://aquarchitect.github.io/swift-algorithm-club/Miller-Rabin%20Primality%20Test/
+ *          https://en.wikipedia.org/wiki/Miller%E2%80%93Rabin_primality_test
+ *          test: 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41.
  */
-BIGNUM *MillerRabinPrimalityTest(int nBits){
-    BIGNUM* prime = BN_new();
-    return prime;
+int MillerRabinPrimalityTest(BIGNUM* in, int nBits){
+    const int k = 10;
+
+    BIGNUM* two = BN_new();
+    BN_dec2bn(&two, "2");
+
+    BIGNUM* zero = BN_new();
+    BN_dec2bn(&zero, "0");
+
+    BIGNUM* n = GetRandBN(nBits);
+    BIGNUM* n_1_cur = BN_new();
+    BIGNUM* d = BN_new();
+    BN_sub(n_1_cur, n, BN_value_one());
+
+    BIGNUM* rem = BN_new();
+    BN_CTX* ctx = BN_CTX_new();
+    int r = 0;
+    while (1)
+    {
+        // int BN_div(BIGNUM *dv, BIGNUM *rem, const BIGNUM *a, const BIGNUM *d, BN_CTX *ctx);
+        // (dv=a/d, rem=a%d)
+        // m_cand_1 = m_cand_1 / two
+        printf("r=%d: rem=%s, m_can1 %s\n", r, BN_bn2hex(rem), BN_bn2hex(n_1_cur));
+        BN_copy(d, n_1_cur);
+        BN_div(n_1_cur, rem, n_1_cur, two, ctx);
+        if (BN_cmp(rem, zero) == 1){
+            break;
+        }
+        r++;
+    }
+
+    BIGNUM* x = BN_new();
+    BIGNUM* n_2 = BN_dup(n);
+    BN_sub(n_1_cur, n, BN_value_one());
+    BN_sub(n_2, n_2, two);
+    for(int i = 0; i < k; i++){
+        BIGNUM* a = GetRandBN(nBits);
+        while (BN_cmp(a, n_2) == 1 || BN_cmp(two, a) != 1)
+        {
+            BN_free(a);
+            a = NULL;
+            a = GetRandBN(nBits);
+        }
+        BIGNUM* tmp = BN_new();
+        
+        ExpMod(tmp, a, d, n);
+        
+        if (BN_cmp(x, BN_value_one()) == 0 || BN_cmp(x, n_1_cur) == 0){
+            continue;
+        }
+
+        for(int j = 0; j < r - 1; j++){
+            ExpMod(x, x, two, n);
+            if(BN_cmp(x, BN_value_one()) == 0){
+                // 합성수
+                return 0;
+            }
+            if(BN_cmp(x, n_1_cur) == 0){
+                continue; 
+            }
+        }
+        // 합성수
+        return 0;
+    }
+
+    in = BN_dup(n);
+    return 1;
 }
 
 
@@ -201,12 +267,25 @@ int BOB11_RSA_KeyGen(BOB11_RSA *b11rsa, int nBits){
     BN_CTX* ctx = BN_CTX_new();
 
     // Choose two primes p and q, and put n := pq.
-    BIGNUM* p = BN_new();
-    BIGNUM* q = BN_new();
+    BIGNUM* p;// = BN_new();
+    BIGNUM* q;// = BN_new();
 
     // p, q 랜덤으로 선택되어야 함. 여기 scope에서 생성되고, 검증되고, 없어져야만 함.
-    BN_hex2bn(&p, "C485F491D12EA7E6FEB95794E9FE0A819168AAC9D545C9E2AE0C561622F265FEB965754C875E049B19F3F945F2574D57FA6A2FC0A0B99A2328F107DD16ADA2A7");
-    BN_hex2bn(&q, "F9A91C5F20FBBCCC4114FEBABFE9D6806A52AECDF5C9BAC9E72A07B0AE162B4540C62C52DF8A8181ABCC1A9E982DEB84DE500B27E902CD8FDED6B545C067CE4F");
+    // BN_hex2bn(&p, "C485F491D12EA7E6FEB95794E9FE0A819168AAC9D545C9E2AE0C561622F265FEB965754C875E049B19F3F945F2574D57FA6A2FC0A0B99A2328F107DD16ADA2A7");
+    // BN_hex2bn(&q, "F9A91C5F20FBBCCC4114FEBABFE9D6806A52AECDF5C9BAC9E72A07B0AE162B4540C62C52DF8A8181ABCC1A9E982DEB84DE500B27E902CD8FDED6B545C067CE4F");
+
+    // Do Test
+    int ret = 0;
+    while (ret == 0)
+    {
+        ret = MillerRabinPrimalityTest(p, nBits);
+    }
+    while (ret == 0)
+    {
+        ret = MillerRabinPrimalityTest(q, nBits);
+    }
+    
+    
     //BN_hex2bn(&p, "11");
     //BN_hex2bn(&q, "13");
     BN_mul(b11rsa->n, p, q, ctx);
@@ -232,6 +311,13 @@ int BOB11_RSA_KeyGen(BOB11_RSA *b11rsa, int nBits){
     while(1){
         BIGNUM* gcd;
         BIGNUM* dummy = BN_new();
+        do{
+            
+        } while(1);
+        if (BN_cmp(b11rsa->e, phi)){
+            b11rsa->e = GetRandBN(nBits);
+
+        }
         BN_rand_range(b11rsa->e, phi); // !TODO: 랜덤 쓰면 안됨.
         gcd = XEuclid(b11rsa->d, dummy, b11rsa->e, phi);
         if (BN_cmp(gcd, BN_value_one()) == 0){
