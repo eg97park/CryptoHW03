@@ -24,7 +24,7 @@ int BOB11_RSA_free(BOB11_RSA *b11rsa);
 int BOB11_RSA_KeyGen(BOB11_RSA *b11rsa, int nBits);
 int BOB11_RSA_Enc(BIGNUM *c, BIGNUM *m, BOB11_RSA *b11rsa);
 int BOB11_RSA_Dec(BIGNUM *m,BIGNUM *c, BOB11_RSA *b11rsa);
-int MillerRabinPrimalityTest(BIGNUM* in, int nBits);
+int MillerRabinPrimalityTest(BIGNUM** in, int nBits);
 BIGNUM *GetRandBN(int nBits);
 void PrintUsage();
 void printBN(char *msg, BIGNUM * a);
@@ -166,7 +166,7 @@ BIGNUM *GetRandBN(int nBits){
             break;
         }
     }
-
+    
     BN_hex2bn(&rand, cand);
     fclose(fp);
     return rand;
@@ -182,7 +182,7 @@ BIGNUM *GetRandBN(int nBits){
  *          https://en.wikipedia.org/wiki/Miller%E2%80%93Rabin_primality_test
  *          test: 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41.
  */
-int MillerRabinPrimalityTest(BIGNUM* in, int nBits){
+int MillerRabinPrimalityTest(BIGNUM** in, int nBits){
     const int k = 10;
 
     BIGNUM* two = BN_new();
@@ -204,7 +204,6 @@ int MillerRabinPrimalityTest(BIGNUM* in, int nBits){
         // int BN_div(BIGNUM *dv, BIGNUM *rem, const BIGNUM *a, const BIGNUM *d, BN_CTX *ctx);
         // (dv=a/d, rem=a%d)
         // m_cand_1 = m_cand_1 / two
-        printf("r=%d: rem=%s, m_can1 %s\n", r, BN_bn2hex(rem), BN_bn2hex(n_1_cur));
         BN_copy(d, n_1_cur);
         BN_div(n_1_cur, rem, n_1_cur, two, ctx);
         if (BN_cmp(rem, zero) == 1){
@@ -213,21 +212,23 @@ int MillerRabinPrimalityTest(BIGNUM* in, int nBits){
         r++;
     }
 
-    BIGNUM* x = BN_new();
-    BIGNUM* n_2 = BN_dup(n);
     BN_sub(n_1_cur, n, BN_value_one());
-    BN_sub(n_2, n_2, two);
+    BIGNUM* n_2 = BN_new();
+    BN_sub(n_2, n, two);
+
+    // repeat k times:
     for(int i = 0; i < k; i++){
+        // pick a random integer a in the range [2, n - 2]
         BIGNUM* a = GetRandBN(nBits);
-        while (BN_cmp(a, n_2) == 1 || BN_cmp(two, a) != 1)
+        while (BN_cmp(a, n_2) == 1 || BN_cmp(a, two) == -1)
         {
             BN_free(a);
             a = NULL;
             a = GetRandBN(nBits);
         }
-        BIGNUM* tmp = BN_new();
+        BIGNUM* x = BN_new();
         
-        ExpMod(tmp, a, d, n);
+        ExpMod(x, a, d, n);
         
         if (BN_cmp(x, BN_value_one()) == 0 || BN_cmp(x, n_1_cur) == 0){
             continue;
@@ -247,7 +248,7 @@ int MillerRabinPrimalityTest(BIGNUM* in, int nBits){
         return 0;
     }
 
-    in = BN_dup(n);
+    *in = BN_dup(n);
     return 1;
 }
 
@@ -267,8 +268,8 @@ int BOB11_RSA_KeyGen(BOB11_RSA *b11rsa, int nBits){
     BN_CTX* ctx = BN_CTX_new();
 
     // Choose two primes p and q, and put n := pq.
-    BIGNUM* p;// = BN_new();
-    BIGNUM* q;// = BN_new();
+    BIGNUM* p = BN_new();
+    BIGNUM* q = BN_new();
 
     // p, q 랜덤으로 선택되어야 함. 여기 scope에서 생성되고, 검증되고, 없어져야만 함.
     // BN_hex2bn(&p, "C485F491D12EA7E6FEB95794E9FE0A819168AAC9D545C9E2AE0C561622F265FEB965754C875E049B19F3F945F2574D57FA6A2FC0A0B99A2328F107DD16ADA2A7");
@@ -278,11 +279,12 @@ int BOB11_RSA_KeyGen(BOB11_RSA *b11rsa, int nBits){
     int ret = 0;
     while (ret == 0)
     {
-        ret = MillerRabinPrimalityTest(p, nBits);
+        ret = MillerRabinPrimalityTest(&p, nBits);
     }
+    ret = 0;
     while (ret == 0)
     {
-        ret = MillerRabinPrimalityTest(q, nBits);
+        ret = MillerRabinPrimalityTest(&q, nBits);
     }
     
     
@@ -311,9 +313,6 @@ int BOB11_RSA_KeyGen(BOB11_RSA *b11rsa, int nBits){
     while(1){
         BIGNUM* gcd;
         BIGNUM* dummy = BN_new();
-        do{
-            
-        } while(1);
         if (BN_cmp(b11rsa->e, phi)){
             b11rsa->e = GetRandBN(nBits);
 
