@@ -24,6 +24,7 @@ int BOB11_RSA_free(BOB11_RSA *b11rsa);
 int BOB11_RSA_KeyGen(BOB11_RSA *b11rsa, int nBits);
 int BOB11_RSA_Enc(BIGNUM *c, BIGNUM *m, BOB11_RSA *b11rsa);
 int BOB11_RSA_Dec(BIGNUM *m,BIGNUM *c, BOB11_RSA *b11rsa);
+BIGNUM *GetRandBN(int nBits);
 void PrintUsage();
 void printBN(char *msg, BIGNUM * a);
 BIGNUM *XEuclid(BIGNUM *x, BIGNUM *y, const BIGNUM *a, const BIGNUM *b);
@@ -139,6 +140,34 @@ void printBN(char *msg, BIGNUM * a)
  */
 BIGNUM *GetRandBN(int nBits){
     BIGNUM* rand = BN_new();
+    char* cand = (char*)malloc(sizeof(char) * nBits / 8);
+
+    int randIndex = 0;
+
+    // read random value from /dev/urandom.
+    uint8_t urand[1] = { '\x00' };
+    FILE* fp = fopen("/dev/urandom", "rb");
+    int rb = fread(urand, sizeof(char), 1, fp);
+
+    const char seed[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+    for(int i = 0; i < (nBits / 8) - 1; i++){
+        rb = fread(urand, sizeof(char), 1, fp);
+        randIndex = urand[0] % 16;
+        cand[i] = seed[randIndex];
+    }
+
+    // last round. pick only odd.
+    while (1)
+    {
+        rb = fread(urand, sizeof(char), 1, fp);
+        if ((randIndex = urand[0] % 16) % 2 == 0){
+            cand[(nBits / 8) - 1] = seed[randIndex];
+            break;
+        }
+    }
+
+    BN_hex2bn(&rand, cand);
+    fclose(fp);
     return rand;
 }
 
