@@ -152,7 +152,7 @@ int BOB11_RSA_Dec(BIGNUM *m,BIGNUM *c, BOB11_RSA *b11rsa){
  */
 BIGNUM *GetRandBN(int nBits){
     // "/dev/urandom" 에서 인덱스로 사용할 랜덤 값 읽기.
-    uint8_t urand[1] = { '\x00' };
+    uint8_t* urand = (uint8_t*)malloc(sizeof(uint8_t));
     FILE* fp = fopen("/dev/urandom", "rb");
     if(fp == NULL){
         // Error.
@@ -195,6 +195,7 @@ BIGNUM *GetRandBN(int nBits){
     BN_hex2bn(&rand, cand);
 
     fclose(fp);
+    free(urand);
     free(cand);
     return rand;
 }
@@ -251,7 +252,6 @@ int MillerRabinPrimalityTest(BIGNUM** in, int nBits){
         while (BN_cmp(a, n_2) == 1 || BN_cmp(a, two) == -1)
         {
             BN_free(a);
-            a = NULL;
             a = GetRandBN(nBits);
         }
 
@@ -262,6 +262,8 @@ int MillerRabinPrimalityTest(BIGNUM** in, int nBits){
         // if x = 1 or x = n - 1 then
         if (BN_cmp(x, BN_value_one()) == 0 || BN_cmp(x, n_1) == 0){
             // continue WitnessLoop
+            BN_free(a);
+            BN_free(x);
             continue;
         }
 
@@ -273,6 +275,16 @@ int MillerRabinPrimalityTest(BIGNUM** in, int nBits){
             // if x = 1 then
             if(BN_cmp(x, BN_value_one()) == 0){
                 // return composite
+                BN_free(two);
+                BN_free(zero);
+                BN_free(rem);
+                BN_free(n);
+                BN_free(n_1);
+                BN_free(n_2);
+                BN_free(d);
+                BN_free(a);
+                BN_free(x);
+                BN_CTX_free(ctx);
                 return 0;
             }
 
@@ -283,11 +295,30 @@ int MillerRabinPrimalityTest(BIGNUM** in, int nBits){
             }
         }
         // return composite
+        BN_free(two);
+        BN_free(zero);
+        BN_free(rem);
+        BN_free(n);
+        BN_free(n_1);
+        BN_free(n_2);
+        BN_free(d);
+        BN_free(a);
+        BN_free(x);
+        BN_CTX_free(ctx);
         return 0;
     }
 
     // return probably prime
     *in = BN_dup(n);
+
+    BN_free(two);
+    BN_free(zero);
+    BN_free(rem);
+    BN_free(n);
+    BN_free(n_1);
+        BN_free(n_2);
+    BN_free(d);
+    BN_CTX_free(ctx);
     return 1;
 }
 
@@ -362,9 +393,24 @@ int BOB11_RSA_KeyGen(BOB11_RSA *b11rsa, int nBits){
             if (BN_cmp(b11rsa->d, BN_value_one()) == -1){
                 BN_add(b11rsa->d, b11rsa->d, phi);
             }
+            BN_free(gcd);
+            BN_free(dummy);
+            BN_free(tmp);
+            BN_free(phi_1);
             break;
         }
+        BN_free(gcd);
+        BN_free(dummy);
+        BN_free(tmp);
+        BN_free(phi_1);
     }
+    
+    BN_free(p);
+    BN_free(q);
+    BN_free(p_1);
+    BN_free(q_1);
+    BN_free(phi);
+    BN_CTX_free(ctx);
     return 0;
 }
 
