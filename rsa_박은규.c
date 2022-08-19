@@ -152,7 +152,7 @@ int BOB11_RSA_Dec(BIGNUM *m,BIGNUM *c, BOB11_RSA *b11rsa){
  */
 BIGNUM *GetRandBN(int nBits){
     // "/dev/urandom" 에서 인덱스로 사용할 랜덤 값 읽기.
-    uint8_t* urand = (uint8_t*)malloc(sizeof(uint8_t));
+    uint8_t urand = 0;
     FILE* fp = fopen("/dev/urandom", "rb");
     if(fp == NULL){
         // Error.
@@ -164,27 +164,27 @@ BIGNUM *GetRandBN(int nBits){
     char* cand = (char*)malloc(sizeof(char) * nBits / 8);
     const char seed[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
     for(int i = 0; i < (nBits / 8) - 1; i++){
-        rb = fread(urand, sizeof(char), 1, fp);
+        rb = fread(&urand, sizeof(char), 1, fp);
         if(rb != 1){
             // Error.
             return NULL;
         }
 
-        randIndex = urand[0] % 16;
+        randIndex = urand % 16;
         cand[i] = seed[randIndex];
     }
 
     // 홀수 뽑기 위한 마지막 읽기.
     while (1)
     {
-        rb = fread(urand, sizeof(char), 1, fp);
+        rb = fread(&urand, sizeof(char), 1, fp);
         if(rb != 1){
             // Error.
             return NULL;
         }
 
         // 홀수만 break;
-        if ((randIndex = urand[0] % 16) % 2 == 1){
+        if ((randIndex = urand % 16) % 2 == 1){
             cand[(nBits / 8) - 1] = seed[randIndex];
             break;
         }
@@ -195,7 +195,6 @@ BIGNUM *GetRandBN(int nBits){
     BN_hex2bn(&rand, cand);
 
     fclose(fp);
-    free(urand);
     free(cand);
     return rand;
 }
@@ -238,7 +237,6 @@ int MillerRabinPrimalityTest(BIGNUM** in, int nBits){
         }
         r++;
     }
-
     // n - 1 재설정.
     BN_sub(n_1, n, BN_value_one());
 
@@ -316,7 +314,7 @@ int MillerRabinPrimalityTest(BIGNUM** in, int nBits){
     BN_free(rem);
     BN_free(n);
     BN_free(n_1);
-        BN_free(n_2);
+    BN_free(n_2);
     BN_free(d);
     BN_CTX_free(ctx);
     return 1;
